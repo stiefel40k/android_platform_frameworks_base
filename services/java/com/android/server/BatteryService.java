@@ -44,7 +44,8 @@ import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * <p>BatteryService monitors the charging status, and charge level of the device
@@ -150,6 +151,7 @@ public final class BatteryService extends Binder {
         mHandler = new Handler(true /*async*/);
         mLed = new Led(context, lights);
         mBatteryStats = BatteryStatsService.getService();
+        mBatteryLevel = -1; // initialize to an invalid value
 
         mCriticalBatteryLevel = mContext.getResources().getInteger(
                 com.android.internal.R.integer.config_criticalBatteryWarningLevel);
@@ -168,10 +170,16 @@ public final class BatteryService extends Binder {
                     "DEVPATH=/devices/virtual/switch/invalid_charger");
         }
 
-        // set initial status
-        synchronized (mLock) {
-            updateLocked();
-        }
+        // Some boards have buggy power_supply uevents
+        // Start a timer to update battery level periodically
+        new Timer("BatteryUpdateTimer").schedule(new TimerTask() {
+            @Override
+            public void run() {
+                synchronized (mLock) {
+                    updateLocked();
+                }
+            }
+        }, 0, 30000);
     }
 
     void systemReady() {
@@ -249,6 +257,7 @@ public final class BatteryService extends Binder {
         // shut down gracefully if our battery is critically low and we are not powered.
         // wait until the system has booted before attempting to display the shutdown dialog.
         if (mBatteryLevel == 0 && !isPoweredLocked(BatteryManager.BATTERY_PLUGGED_ANY)) {
+            Slog.w(TAG, "shutdownIfNoPower!!!");
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -268,6 +277,7 @@ public final class BatteryService extends Binder {
         // wait until the system has booted before attempting to display the
         // shutdown dialog.
         if (mBatteryTemperature > mShutdownBatteryTemperature) {
+            Slog.w(TAG, "shutdownIfOverTemp!!!");
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -289,6 +299,7 @@ public final class BatteryService extends Binder {
 
             // Process the new values.
             processValuesLocked();
+            if (DEBUG) Slog.v(TAG, "update battery level = " + mBatteryLevel);
         }
     }
 
@@ -588,7 +599,9 @@ public final class BatteryService extends Binder {
                 return com.android.internal.R.drawable.stat_sys_battery;
             }
         } else {
-            return com.android.internal.R.drawable.stat_sys_battery_unknown;
+            return mBatteryPresent ?
+                    com.android.internal.R.drawable.stat_sys_battery_unknown :
+                    com.android.internal.R.drawable.stat_sys_battery_charge;
         }
     }
 

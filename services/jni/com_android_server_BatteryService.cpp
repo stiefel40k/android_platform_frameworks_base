@@ -76,6 +76,8 @@ struct PowerSupplyPaths {
     String8 batteryHealthPath;
     String8 batteryPresentPath;
     String8 batteryCapacityPath;
+    String8 batteryChargeNowPath;
+    String8 batteryChargeFullPath;
     String8 batteryVoltagePath;
     String8 batteryTemperaturePath;
     String8 batteryTechnologyPath;
@@ -204,6 +206,21 @@ static void setVoltageField(JNIEnv* env, jobject obj, const String8& path, jfiel
     env->SetIntField(obj, fieldID, value);
 }
 
+static void setChargeLevel(JNIEnv* env, jobject obj, jfieldID fieldID) {
+    char buf1[128], buf2[128];
+
+    if (readFromFile(gPaths.batteryChargeNowPath, buf1, 128) > 0 &&
+            readFromFile(gPaths.batteryChargeFullPath, buf2, 128) > 0) {
+        jint value = atoi(buf1) * 100 / atoi(buf2);
+        env->SetIntField(obj, fieldID, value);
+        ALOGV("setChargeLevel value=%d", value);
+    }
+    /*
+     * In some cases the battery path may just disappear a while.
+     * Do not set 0 in such cases to avoid shutdown suddenly.
+     */
+}
+
 static PowerSupplyType readPowerSupplyType(const String8& path) {
     const int SIZE = 128;
     char buf[SIZE];
@@ -230,7 +247,15 @@ static void android_server_BatteryService_update(JNIEnv* env, jobject obj)
 {
     setBooleanField(env, obj, gPaths.batteryPresentPath, gFieldIds.mBatteryPresent);
     
-    setIntField(env, obj, gPaths.batteryCapacityPath, gFieldIds.mBatteryLevel);
+    if (gPaths.batteryPresentPath.isEmpty()) {
+        env->SetIntField(obj, gFieldIds.mBatteryLevel, 100);
+    } else {
+        if (gPaths.batteryCapacityPath.isEmpty()) {
+            setChargeLevel(env, obj, gFieldIds.mBatteryLevel);
+        } else {
+            setIntField(env, obj, gPaths.batteryCapacityPath, gFieldIds.mBatteryLevel);
+        }
+    }
     setVoltageField(env, obj, gPaths.batteryVoltagePath, gFieldIds.mBatteryVoltage);
     setIntField(env, obj, gPaths.batteryTemperaturePath, gFieldIds.mBatteryTemperature);
     
@@ -278,9 +303,14 @@ static void android_server_BatteryService_update(JNIEnv* env, jobject obj)
                 default:
                     ALOGW("%s: Unknown power supply type",
                           gChargerNames[i].string());
+                    break;
                 }
             }
         }
+    }
+    if (i == 0) {
+        /* most likely, we have a PC here */
+        acOnline = true;
     }
 
     env->SetBooleanField(obj, gFieldIds.mAcOnline, acOnline);
@@ -339,9 +369,31 @@ int register_android_server_BatteryService(JNIEnv* env)
                     gPaths.batteryPresentPath = path;
                 path.clear();
                 path.appendFormat("%s/%s/capacity", POWER_SUPPLY_PATH, name);
-                if (access(path, R_OK) == 0)
+                if (access(path, R_OK) == 0) {
                     gPaths.batteryCapacityPath = path;
-
+                } else {
+                    path.clear();
+                    path.appendFormat("%s/%s/charge_now", POWER_SUPPLY_PATH, name);
+                    if (access(path, R_OK) == 0) {
+                        gPaths.batteryChargeNowPath = path;
+                        path.clear();
+                        path.appendFormat("%s/%s/charge_full", POWER_SUPPLY_PATH, name);
+                        if (access(path, R_OK) == 0) {
+                            gPaths.batteryChargeFullPath = path;
+                        }
+                    } else {
+                        path.clear();
+                        path.appendFormat("%s/%s/energy_now", POWER_SUPPLY_PATH, name);
+                        if (access(path, R_OK) == 0) {
+                            gPaths.batteryChargeNowPath = path;
+                            path.clear();
+                            path.appendFormat("%s/%s/energy_full", POWER_SUPPLY_PATH, name);
+                            if (access(path, R_OK) == 0) {
+                                gPaths.batteryChargeFullPath = path;
+                            }
+                        }
+                    }
+                }
                 path.clear();
                 path.appendFormat("%s/%s/voltage_now", POWER_SUPPLY_PATH, name);
                 if (access(path, R_OK) == 0) {
@@ -371,27 +423,22 @@ int register_android_server_BatteryService(JNIEnv* env)
                 if (access(path, R_OK) == 0)
                     gPaths.batteryTechnologyPath = path;
                 break;
+            default:
+                ALOGW("%s/%s/type is ANDROID_POWER_SUPPLY_TYPE_UNKNOWN?", POWER_SUPPLY_PATH, name);
+                break;
             }
         }
         closedir(dir);
     }
 
-    if (!gChargerNames.size())
-        ALOGE("No charger supplies found");
-    if (!gPaths.batteryStatusPath)
-        ALOGE("batteryStatusPath not found");
-    if (!gPaths.batteryHealthPath)
-        ALOGE("batteryHealthPath not found");
-    if (!gPaths.batteryPresentPath)
-        ALOGE("batteryPresentPath not found");
-    if (!gPaths.batteryCapacityPath)
-        ALOGE("batteryCapacityPath not found");
-    if (!gPaths.batteryVoltagePath)
-        ALOGE("batteryVoltagePath not found");
-    if (!gPaths.batteryTemperaturePath)
-        ALOGE("batteryTemperaturePath not found");
-    if (!gPaths.batteryTechnologyPath)
-        ALOGE("batteryTechnologyPath not found");
+    ALOGE_IF(gChargerNames.isEmpty(), "No charger supplies found");
+    ALOGE_IF(gPaths.batteryStatusPath.isEmpty(), "batteryStatusPath not found");
+    ALOGE_IF(gPaths.batteryHealthPath.isEmpty(), "batteryHealthPath not found");
+    ALOGE_IF(gPaths.batteryPresentPath.isEmpty(), "batteryPresentPath not found");
+    ALOGE_IF(gPaths.batteryCapacityPath.isEmpty() && (gPaths.batteryChargeNowPath.isEmpty() || gPaths.batteryChargeFullPath.isEmpty()), "batteryCapacityPath not found");
+    ALOGE_IF(gPaths.batteryVoltagePath.isEmpty(), "batteryVoltagePath not found");
+    ALOGE_IF(gPaths.batteryTemperaturePath.isEmpty(), "batteryTemperaturePath not found");
+    ALOGE_IF(gPaths.batteryTechnologyPath.isEmpty(), "batteryTechnologyPath not found");
 
     jclass clazz = env->FindClass("com/android/server/BatteryService");
 

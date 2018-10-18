@@ -50,6 +50,8 @@
 #include <sys/limits.h>
 #include <sys/sha1.h>
 
+#include <linux/vt.h>
+
 /* this macro is used to tell if "bit" is set in "array"
  * it selects a byte from the array, and does a boolean AND
  * operation with a byte that only has the relevant bit set.
@@ -65,6 +67,8 @@
 #define INDENT3 "      "
 
 namespace android {
+
+int android_vt = 1;
 
 static const char *WAKE_LOCK_ID = "KeyEvents";
 static const char *DEVICE_PATH = "/dev/input";
@@ -709,6 +713,14 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
             }
         }
 
+#ifdef __i386__
+        struct vt_stat vs;
+        int fd_vt = open("/dev/tty0", O_RDWR | O_SYNC);
+        if (fd_vt >= 0) {
+            ioctl(fd_vt, VT_GETSTATE, &vs);
+            close(fd_vt);
+        }
+#endif
         // Grab the next input event.
         bool deviceChanged = false;
         while (mPendingEventIndex < mPendingEventCount) {
@@ -763,6 +775,12 @@ size_t EventHub::getEvents(int timeoutMillis, RawEvent* buffer, size_t bufferSiz
                 } else if ((readSize % sizeof(struct input_event)) != 0) {
                     ALOGE("could not get event (wrong size: %d)", readSize);
                 } else {
+#ifdef __i386__
+                    if (vs.v_active != android_vt) {
+                        ALOGV("Skip a non Android VT event");
+                        continue;
+                    }
+#endif
                     int32_t deviceId = device->id == mBuiltInKeyboardId ? 0 : device->id;
 
                     size_t count = size_t(readSize) / sizeof(struct input_event);
@@ -991,7 +1009,16 @@ static const int32_t GAMEPAD_KEYCODES[] = {
 };
 
 status_t EventHub::openDeviceLocked(const char *devicePath) {
+    return openDeviceLocked(devicePath, false);
+}
+
+status_t EventHub::openDeviceLocked(const char *devicePath, bool ignoreAlreadyOpened) {
     char buffer[80];
+
+    if (ignoreAlreadyOpened && (getDeviceByPathLocked(devicePath) != 0)) {
+        ALOGV("Ignoring device '%s' that has already been opened.", devicePath);
+        return 0;
+    }
 
     ALOGV("Opening device: %s", devicePath);
 
@@ -1084,9 +1111,6 @@ status_t EventHub::openDeviceLocked(const char *devicePath) {
     ALOGV("  driver:     v%d.%d.%d\n",
         driverVersion >> 16, (driverVersion >> 8) & 0xff, driverVersion & 0xff);
 
-    // Load the configuration file for the device.
-    loadConfigurationLocked(device);
-
     // Figure out the kinds of events the device reports.
     ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(device->keyBitmask)), device->keyBitmask);
     ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(device->absBitmask)), device->absBitmask);
@@ -1127,7 +1151,7 @@ status_t EventHub::openDeviceLocked(const char *devicePath) {
             device->classes |= INPUT_DEVICE_CLASS_TOUCH | INPUT_DEVICE_CLASS_TOUCH_MT;
         }
     // Is this an old style single-touch driver?
-    } else if (test_bit(BTN_TOUCH, device->keyBitmask)
+    } else if ((test_bit(BTN_TOUCH, device->keyBitmask) || test_bit(BTN_LEFT, device->keyBitmask))
             && test_bit(ABS_X, device->absBitmask)
             && test_bit(ABS_Y, device->absBitmask)) {
         device->classes |= INPUT_DEVICE_CLASS_TOUCH;
@@ -1160,6 +1184,9 @@ status_t EventHub::openDeviceLocked(const char *devicePath) {
         device->classes |= INPUT_DEVICE_CLASS_VIBRATOR;
     }
 
+    // Load the configuration file for the device.
+    loadConfigurationLocked(device);
+
     // Configure virtual keys.
     if ((device->classes & INPUT_DEVICE_CLASS_TOUCH)) {
         // Load the virtual keys for the touch screen, if any.
@@ -1190,7 +1217,11 @@ status_t EventHub::openDeviceLocked(const char *devicePath) {
 
         // 'Q' key support = cheap test of whether this is an alpha-capable kbd
         if (hasKeycodeLocked(device, AKEYCODE_Q)) {
-            device->classes |= INPUT_DEVICE_CLASS_ALPHAKEY;
+            char value[PROPERTY_VALUE_MAX];
+            property_get("ro.ignore_atkbd", value, "0");
+            if ((device->identifier.name != "AT Translated Set 2 keyboard") || (!atoi(value))) {
+                device->classes |= INPUT_DEVICE_CLASS_ALPHAKEY;
+            }
         }
 
         // See if this device has a DPAD.
@@ -1302,6 +1333,10 @@ void EventHub::addDeviceLocked(Device* device) {
 void EventHub::loadConfigurationLocked(Device* device) {
     device->configurationFile = getInputDeviceConfigurationFilePathByDeviceIdentifier(
             device->identifier, INPUT_DEVICE_CONFIGURATION_FILE_TYPE_CONFIGURATION);
+    if ((device->classes & INPUT_DEVICE_CLASS_TOUCH) && device->configurationFile.isEmpty()) {
+        device->configurationFile = getInputDeviceConfigurationFilePathByName(String8("GenericTouch"),
+                INPUT_DEVICE_CONFIGURATION_FILE_TYPE_CONFIGURATION);
+    }
     if (device->configurationFile.isEmpty()) {
         ALOGD("No input device configuration file found for device '%s'.",
                 device->identifier.name.string());
@@ -1454,7 +1489,7 @@ status_t EventHub::readNotifyLocked() {
         if(event->len) {
             strcpy(filename, event->name);
             if(event->mask & IN_CREATE) {
-                openDeviceLocked(devname);
+                openDeviceLocked(devname, true);
             } else {
                 ALOGI("Removing device '%s' due to inotify event\n", devname);
                 closeDeviceByPathLocked(devname);

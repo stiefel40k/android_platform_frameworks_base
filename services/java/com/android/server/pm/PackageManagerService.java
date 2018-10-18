@@ -134,6 +134,7 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -491,6 +492,11 @@ public class PackageManagerService extends IPackageManager.Stub {
     // package uri's from external media onto secure containers
     // or internal storage.
     private IMediaContainerService mContainerService = null;
+
+    // Packages that have been installed with library matching 2nd ABI.
+    final HashMap<Integer, String> mPackagesMatchABI2 = new HashMap<Integer,String>();
+    // Packages that have been installed with library matching 2nd ABI and matching neon app list
+    final HashMap<Integer, String> mPackagesMatchABI2Neon = new HashMap<Integer,String>();
 
     static final int SEND_PENDING_BROADCAST = 1;
     static final int MCS_BOUND = 3;
@@ -3790,6 +3796,53 @@ public class PackageManagerService extends IPackageManager.Stub {
         return new File(mUserAppDataDir.getAbsolutePath() + File.separator + userId);
     }
 
+    private void writeAppwithABI2Internal(String fileName, HashMap<Integer, String> map) {
+        File outputFile;
+        FileOutputStream out = null;
+        File appDataDir = new File("/data/data");
+
+        try {
+            File tempFile = File.createTempFile("tmp", "tmp", appDataDir);
+            String tempFilePath = tempFile.getPath();
+            outputFile = new File(fileName);
+            if (FileUtils.setPermissions(tempFilePath,
+                FileUtils.S_IRUSR | FileUtils.S_IWUSR |
+                FileUtils.S_IRGRP | FileUtils.S_IROTH, -1, -1) != 0
+                || !tempFile.renameTo(outputFile)) {
+                tempFile.delete();
+            }
+            out = new FileOutputStream(outputFile);
+            Iterator<HashMap.Entry<Integer, String>>
+            it = map.entrySet().iterator();
+            while (it.hasNext()) {
+                HashMap.Entry<Integer, String> ent = it.next();
+                int userID = ent.getKey().intValue();
+                out.write(userID & 0xff);
+                out.write((userID>>8)  & 0xff);
+                out.write((userID>>16) & 0xff);
+                out.write((userID>>24) & 0xff);
+                Slog.i(TAG, "Data written:"+ userID);
+            }
+        } catch (Exception e) {
+            Slog.e(TAG, "File Access Error: Not Able to write Data into " + fileName);
+        } finally {
+            try {
+                if (out != null) {
+                    out.close();
+                    Slog.i(TAG, "Data written into " + fileName);
+                }
+            } catch (IOException e) {}
+        }
+    }
+
+    private void writeAppwithABI2() {
+        writeAppwithABI2Internal(new String("/data/data/.appwithABI2"), mPackagesMatchABI2);
+    }
+
+    private void writeAppwithABI2Neon() {
+        writeAppwithABI2Internal(new String("/data/data/.appwithABI2neon"), mPackagesMatchABI2Neon);
+    }
+
     private File getDataPathForPackage(String packageName, int userId) {
         /*
          * Until we fully support multiple users, return the directory we
@@ -4108,6 +4161,27 @@ public class PackageManagerService extends IPackageManager.Stub {
                 Slog.w(TAG, "Package " + pkg.packageName
                         + " was transferred to another, but its .apk remains");
             }
+
+            String abi2 = SystemProperties.get("ro.product.cpu.abi2");
+            if (abi2.length() != 0) {
+                // abi2 is set, houdini is enabled
+                PackageSetting p = mSettings.mPackages.get(pkg.packageName);
+                if ((p != null) && (!p.codePath.equals(destCodeFile))){
+
+                   // Already existing package. Make sure not upgrade to black list
+                    int result = NativeLibraryHelper.listNativeBinariesLI(scanFile);
+
+                    if (result == PackageManager.INSTALL_ABI2_SUCCEEDED) {
+                        ICheckExt check = new CheckExt();
+                        if(check.doCheck(pkg.packageName, new String("filter"))){
+                            Slog.i(TAG, "Reject application in black list::" + pkg.packageName);
+                            mLastScanError = PackageManager.INSTALL_FAILED_INVALID_APK;
+                            return null;
+                        }
+                    }
+
+                }
+            }
             
             // Just create the setting, don't add it yet. For already existing packages
             // the PkgSetting exists already and doesn't have to be created.
@@ -4413,7 +4487,34 @@ public class PackageManagerService extends IPackageManager.Stub {
                         }
 
                         try {
-                            if (copyNativeLibrariesForInternalApp(scanFile, nativeLibraryDir) != PackageManager.INSTALL_SUCCEEDED) {
+                            int copyRet = copyNativeLibrariesForInternalApp(scanFile, nativeLibraryDir);
+                            Integer pkgUidInt = new Integer(pkg.applicationInfo.uid);
+                            if (copyRet == PackageManager.INSTALL_SUCCEEDED) {
+                                String abi2 = SystemProperties.get("ro.product.cpu.abi2");
+                                if (abi2.length() != 0 && mPackagesMatchABI2.containsKey(pkgUidInt)) {
+                                    Slog.i(TAG, "Replace package with primary ABI Library");
+                                    mPackagesMatchABI2.remove(pkgUidInt);
+                                    writeAppwithABI2();
+                                    if (mPackagesMatchABI2Neon.containsKey(pkgUidInt)) {
+                                        mPackagesMatchABI2Neon.remove(pkgUidInt);
+                                        writeAppwithABI2Neon();
+                                    }
+                                }
+                            } else if (copyRet == PackageManager.INSTALL_ABI2_SUCCEEDED) {
+                                ICheckExt check = new CheckExt();
+                                if(check.doCheck(pkgName, new String("filter"))) {
+                                    Slog.i(TAG, "Package with second ABI is in black list: " + pkgUidInt + pkg.applicationInfo.processName);
+                                    mLastScanError = PackageManager.INSTALL_FAILED_INVALID_APK;
+                                    return null;
+                                }
+                                Slog.i(TAG, "Package installed with second ABI Library: " + pkgUidInt + pkg.applicationInfo.processName);
+                                mPackagesMatchABI2.put(pkgUidInt, pkg.applicationInfo.processName);
+                                writeAppwithABI2();
+                                if (check.doCheck(pkgName, new String("neon"))) {
+                                    mPackagesMatchABI2Neon.put(pkgUidInt, pkg.applicationInfo.processName);
+                                    writeAppwithABI2Neon();
+                                }
+                            } else {
                                 Slog.e(TAG, "Unable to copy native libraries");
                                 mLastScanError = PackageManager.INSTALL_FAILED_INTERNAL_ERROR;
                                 return null;
@@ -4906,6 +5007,19 @@ public class PackageManagerService extends IPackageManager.Stub {
             final PackageParser.Package pkg = ps.pkg;
             if (pkg != null) {
                 cleanPackageDataStructuresLILPw(pkg, chatty);
+
+                String abi2 = SystemProperties.get("ro.product.cpu.abi2");
+                Integer pkgUidInt = new Integer(pkg.applicationInfo.uid);
+                if (abi2.length() != 0 && mPackagesMatchABI2.containsKey(pkgUidInt)) {
+                    Slog.i(TAG, "Uninstall package with second ABI Library");
+                    mPackagesMatchABI2.remove(pkgUidInt);
+                    writeAppwithABI2();
+                    if (mPackagesMatchABI2Neon.containsKey(pkgUidInt)) {
+                        mPackagesMatchABI2Neon.remove(pkgUidInt);
+                        writeAppwithABI2Neon();
+                    }
+                }
+
             }
         }
     }
@@ -4923,6 +5037,18 @@ public class PackageManagerService extends IPackageManager.Stub {
                 mAppDirs.remove(pkg.mPath);
             }
             cleanPackageDataStructuresLILPw(pkg, chatty);
+
+            String abi2 = SystemProperties.get("ro.product.cpu.abi2");
+            if (abi2.length() != 0 && mPackagesMatchABI2.containsKey(new Integer(pkg.applicationInfo.uid))) {
+                Slog.i(TAG, "Uninstall package with second ABI Library");
+                mPackagesMatchABI2.remove(new Integer(pkg.applicationInfo.uid));
+                writeAppwithABI2();
+                if (mPackagesMatchABI2Neon.containsKey(new Integer(pkg.applicationInfo.uid))) {
+                    mPackagesMatchABI2Neon.remove(new Integer(pkg.applicationInfo.uid));
+                    writeAppwithABI2Neon();
+                }
+            }
+
         }
     }
 
@@ -7459,7 +7585,7 @@ public class PackageManagerService extends IPackageManager.Stub {
             }
             try {
                 int copyRet = copyNativeLibrariesForInternalApp(codeFile, nativeLibraryFile);
-                if (copyRet != PackageManager.INSTALL_SUCCEEDED) {
+                if (copyRet != PackageManager.INSTALL_SUCCEEDED && copyRet != PackageManager.INSTALL_ABI2_SUCCEEDED) {
                     return copyRet;
                 }
             } catch (IOException e) {

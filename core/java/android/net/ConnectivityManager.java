@@ -25,6 +25,7 @@ import android.os.Binder;
 import android.os.Build.VERSION_CODES;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.os.ResultReceiver;
 import android.provider.Settings;
 
 import java.net.InetAddress;
@@ -576,6 +577,29 @@ public class ConnectivityManager {
     public NetworkInfo[] getAllNetworkInfo() {
         try {
             return mService.getAllNetworkInfo();
+        } catch (RemoteException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns details about the Provisioning or currently active default data network. When
+     * connected, this network is the default route for outgoing connections.
+     * You should always check {@link NetworkInfo#isConnected()} before initiating
+     * network traffic. This may return {@code null} when there is no default
+     * network.
+     *
+     * @return a {@link NetworkInfo} object for the current default network
+     *        or {@code null} if no network default network is currently active
+     *
+     * <p>This method requires the call to hold the permission
+     * {@link android.Manifest.permission#ACCESS_NETWORK_STATE}.
+     *
+     * {@hide}
+     */
+    public NetworkInfo getProvisioningOrActiveNetworkInfo() {
+        try {
+            return mService.getProvisioningOrActiveNetworkInfo();
         } catch (RemoteException e) {
             return null;
         }
@@ -1282,6 +1306,25 @@ public class ConnectivityManager {
     }
 
     /**
+     * Signal that the captive portal check on the indicated network
+     * is complete and whether its a captive portal or not.
+     *
+     * @param info the {@link NetworkInfo} object for the networkType
+     *        in question.
+     * @param isCaptivePortal true/false.
+     *
+     * <p>This method requires the call to hold the permission
+     * {@link android.Manifest.permission#CONNECTIVITY_INTERNAL}.
+     * {@hide}
+     */
+    public void captivePortalCheckCompleted(NetworkInfo info, boolean isCaptivePortal) {
+        try {
+            mService.captivePortalCheckCompleted(info, isCaptivePortal);
+        } catch (RemoteException e) {
+        }
+    }
+
+    /**
      * Supply the backend messenger for a network tracker
      *
      * @param type NetworkType to set
@@ -1291,6 +1334,65 @@ public class ConnectivityManager {
     public void supplyMessenger(int networkType, Messenger messenger) {
         try {
             mService.supplyMessenger(networkType, messenger);
+        } catch (RemoteException e) {
+        }
+    }
+
+    /**
+     * Check mobile provisioning.
+     *
+     * @param suggestedTimeOutMs, timeout in milliseconds
+     *
+     * @return time out that will be used, maybe less that suggestedTimeOutMs
+     * -1 if an error.
+     *
+     * {@hide}
+     */
+    public int checkMobileProvisioning(int suggestedTimeOutMs) {
+        int timeOutMs = -1;
+        try {
+            timeOutMs = mService.checkMobileProvisioning(suggestedTimeOutMs);
+        } catch (RemoteException e) {
+        }
+        return timeOutMs;
+    }
+
+    /**
+     * Get the mobile provisioning url.
+     * {@hide}
+     */
+    public String getMobileProvisioningUrl() {
+        try {
+            return mService.getMobileProvisioningUrl();
+        } catch (RemoteException e) {
+        }
+        return null;
+    }
+
+    /**
+     * Get the mobile redirected provisioning url.
+     * {@hide}
+     */
+    public String getMobileRedirectedProvisioningUrl() {
+        try {
+            return mService.getMobileRedirectedProvisioningUrl();
+        } catch (RemoteException e) {
+        }
+        return null;
+    }
+
+    /**
+     * Set sign in error notification to visible or in visible
+     *
+     * @param visible
+     * @param networkType
+     *
+     * {@hide}
+     */
+    public void setProvisioningNotificationVisible(boolean visible, int networkType,
+            String extraInfo, String url) {
+        try {
+            mService.setProvisioningNotificationVisible(visible, networkType, extraInfo, url);
         } catch (RemoteException e) {
         }
     }

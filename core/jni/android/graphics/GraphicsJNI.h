@@ -17,6 +17,8 @@ class SkPicture;
 
 class GraphicsJNI {
 public:
+    static bool useOpenglRenderer();
+
     // returns true if an exception is set (and dumps it out to the Log)
     static bool hasException(JNIEnv*);
 

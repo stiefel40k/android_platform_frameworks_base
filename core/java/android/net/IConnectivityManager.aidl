@@ -24,6 +24,7 @@ import android.net.ProxyProperties;
 import android.os.IBinder;
 import android.os.Messenger;
 import android.os.ParcelFileDescriptor;
+import android.os.ResultReceiver;
 
 import com.android.internal.net.LegacyVpnInfo;
 import com.android.internal.net.VpnConfig;
@@ -44,6 +45,8 @@ interface IConnectivityManager
     NetworkInfo getActiveNetworkInfoForUid(int uid);
     NetworkInfo getNetworkInfo(int networkType);
     NetworkInfo[] getAllNetworkInfo();
+
+    NetworkInfo getProvisioningOrActiveNetworkInfo();
 
     boolean isNetworkSupported(int networkType);
 
@@ -128,7 +131,17 @@ interface IConnectivityManager
 
     void captivePortalCheckComplete(in NetworkInfo info);
 
+    void captivePortalCheckCompleted(in NetworkInfo info, boolean isCaptivePortal);
+
     void supplyMessenger(int networkType, in Messenger messenger);
 
     int findConnectionTypeForIface(in String iface);
+
+    int checkMobileProvisioning(int suggestedTimeOutMs);
+
+    String getMobileProvisioningUrl();
+
+    String getMobileRedirectedProvisioningUrl();
+
+    void setProvisioningNotificationVisible(boolean visible, int networkType, in String extraInfo, in String url);
 }

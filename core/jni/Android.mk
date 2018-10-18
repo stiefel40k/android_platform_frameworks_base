@@ -11,6 +11,11 @@ else
 	LOCAL_CFLAGS += -DPACKED=""
 endif
 
+ifeq ($(INTEL_HOUDINI), true)
+    LOCAL_CFLAGS += -DWITH_HOUDINI
+    LOCAL_STATIC_LIBRARIES += libhoudini_hook
+endif
+
 ifeq ($(USE_OPENGL_RENDERER),true)
 	LOCAL_CFLAGS += -DUSE_OPENGL_RENDERER
 endif
