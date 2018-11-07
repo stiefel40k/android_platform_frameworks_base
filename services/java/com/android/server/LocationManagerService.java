@@ -76,6 +76,10 @@ import com.android.server.location.LocationProviderProxy;
 import com.android.server.location.MockProvider;
 import com.android.server.location.PassiveProvider;
 
+// begin WITH_TAINT_TRACKING
+import dalvik.system.Taint;
+// end WITH_TAINT_TRACKING
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -2092,6 +2096,31 @@ public class LocationManagerService extends ILocationManager.Stub {
         // disturbing the caller's copy
         Location myLocation = new Location(location);
         String provider = myLocation.getProvider();
+
+// begin WITH_TAINT_TRACKING
+        int tag = Taint.TAINT_LOCATION;
+        if (LocationManager.GPS_PROVIDER.equals(provider)) {
+          tag |= Taint.TAINT_LOCATION_GPS;
+        }
+        if (LocationManager.NETWORK_PROVIDER.equals(provider)) {
+          tag |= Taint.TAINT_LOCATION_NET;
+        }
+        myLocation.setLatitude(Taint.addTaintDouble(myLocation.getLatitude(), tag));
+        myLocation.setLongitude(Taint.addTaintDouble(myLocation.getLongitude(), tag));
+        if (myLocation.hasAltitude()) {
+          myLocation.setAltitude(Taint.addTaintDouble(myLocation.getAltitude(), tag));
+        }
+        if (myLocation.hasSpeed()) {
+          myLocation.setSpeed(Taint.addTaintFloat(myLocation.getSpeed(), tag));
+        }
+        if (myLocation.hasBearing()) {
+          myLocation.setBearing(Taint.addTaintFloat(myLocation.getBearing(), tag));
+        }
+        if (myLocation.hasAccuracy()) {
+          myLocation.setAccuracy(Taint.addTaintFloat(myLocation.getAccuracy(), tag));
+        }
+// end WITH_TAINT_TRACKING 
+
 
         // set "isFromMockProvider" bit if location came from a mock provider. we do not clear this
         // bit if location did not come from a mock provider because passive/fused providers can

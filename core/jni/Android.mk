@@ -234,6 +234,16 @@ ifeq ($(INTEL_HOUDINI), true)
     LOCAL_STATIC_LIBRARIES += libhoudini_hook
 endif
 
+# begin WITH_TAINT_TRACKING
+ifeq ($(WITH_TAINT_TRACKING), true)
+	LOCAL_CFLAGS += -DWITH_TAINT_TRACKING
+endif
+
+ifeq ($(WITH_TAINT_BYTE_PARCEL), true)
+	LOCAL_CFLAGS += -DWITH_TAINT_BYTE_PARCEL
+endif
+# end WITH_TAINT_TRACKING
+
 LOCAL_MODULE:= libandroid_runtime
 
 include external/stlport/libstlport.mk
