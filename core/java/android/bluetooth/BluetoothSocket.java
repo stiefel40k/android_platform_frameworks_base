@@ -425,6 +425,9 @@ public final class BluetoothSocket implements Closeable {
 
             if (VDBG) Log.d(TAG, "read in:  " + mSocketIS + " len: " + length);
             int ret = mSocketIS.read(b, offset, length);
+            // begin WITH_TAINT_TRACKING_GABOR
+            Log.d(TAG, "Maybe we should taint the shit is read from the bluetooth socket...");
+            // end WITH_TAINT_TRACKING_GABOR
             if(ret < 0)
                 throw new IOException("bt socket closed, read return: " + ret);
             if (VDBG) Log.d(TAG, "read out:  " + mSocketIS + " ret: " + ret);
@@ -433,6 +436,9 @@ public final class BluetoothSocket implements Closeable {
 
     /*package*/ int write(byte[] b, int offset, int length) throws IOException {
 
+            // begin WITH_TAINT_TRACKING_GABOR
+            Log.d(TAG, "Maybe we should taint the shit is written to the bluetooth socket...");
+            // end WITH_TAINT_TRACKING_GABOR
             if (VDBG) Log.d(TAG, "write: " + mSocketOS + " length: " + length);
             mSocketOS.write(b, offset, length);
             // There is no good way to confirm since the entire process is asynchronous anyway

@@ -19,6 +19,9 @@ package android.bluetooth;
 import java.io.IOException;
 import java.io.OutputStream;
 
+// begin WITH_TAINT_TRACKING_GABOR
+import dalvik.system.Taint;
+// end WITH_TAINT_TRACKING_GABOR
 /**
  * BluetoothOutputStream.
  *
@@ -53,6 +56,24 @@ import java.io.OutputStream;
     public void write(int oneByte) throws IOException {
         byte b[] = new byte[1];
         b[0] = (byte)oneByte;
+// begin WITH_TAINT_TRACKING_GABOR
+        int tag = Taint.getTaintInt(oneByte);
+        if (tag != Taint.TAINT_CLEAR) {
+          String dstr = String.valueOf(oneByte);
+          // We only display at most Taint.dataBytesToLog characters in logcat of data
+          if (dstr.length() > Taint.dataBytesToLog) {
+            dstr = dstr.substring(0, Taint.dataBytesToLog);                                                              
+          }
+          // replace non-printable characters
+          dstr = dstr.replaceAll("\\p{C}", ".");
+          String tstr = "0x" + Integer.toHexString(tag);
+          if (tag == Taint.TAINT_SSLINPUT) {
+            Taint.log("Sending out through Bluetooth SSL-Tainted data=[" + dstr + "]");
+          } else {
+            Taint.log("BluetoothOutputStream.write() received data with tag " + tstr + " data=[" + dstr + "]");
+          }
+        }
+// end WITH_TAINT_TRACKING_GABOR
         mSocket.write(b, 0, 1);
     }
 
@@ -82,6 +103,23 @@ import java.io.OutputStream;
         if ((offset | count) < 0 || count > b.length - offset) {
             throw new IndexOutOfBoundsException("invalid offset or length");
         }
+// begin WITH_TAINT_TRACKING_GABOR
+        int tag = Taint.getTaintByteArray(b);
+        if (tag != Taint.TAINT_CLEAR) {
+          int disLen = count;
+          if (count > Taint.dataBytesToLog) {
+            disLen = Taint.dataBytesToLog;
+          }
+          // We only display at most Taint.dataBytesToLog characters in logcat
+          String dstr = new String(b, offset, disLen);
+          String tstr = "0x" + Integer.toHexString(tag);
+          if (tag == Taint.TAINT_SSLINPUT) {
+            Taint.log("Sending out through Bluetooth SSL-Tainted data=[" + dstr + "]");
+          } else {
+            Taint.log("BluetoothOutputStream.write() received data with tag " + tstr + " data=[" + dstr + "]");
+          }
+        }
+// end WITH_TAINT_TRACKING_GABOR
         mSocket.write(b, offset, count);
     }
     /**

@@ -36,6 +36,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+// begin WITH_TAINT_TRACKING_GABOR
+import dalvik.system.Taint;
+// end WITH_TAINT_TRACKING_GABOR
 /**
  * Public API for the Bluetooth GATT Profile.
  *
@@ -836,6 +839,7 @@ public final class BluetoothGatt implements BluetoothProfile {
         if ((characteristic.getProperties() &
                 BluetoothGattCharacteristic.PROPERTY_READ) == 0) return false;
 
+        Taint.log("Test if I found the right spot found (readCharacteristic");
         if (DBG) Log.d(TAG, "readCharacteristic() - uuid: " + characteristic.getUuid());
         if (mService == null || mClientIf == 0) return false;
 
@@ -884,6 +888,26 @@ public final class BluetoothGatt implements BluetoothProfile {
         BluetoothDevice device = service.getDevice();
         if (device == null) return false;
 
+        // begin WITH_TAINT_TRACKING_GABOR
+        int tag = Taint.getTaintByteArray(characteristic.getValue());
+        if (tag != Taint.TAINT_CLEAR) {
+          int disLen = characteristic.getValue().length;
+          if (disLen > Taint.dataBytesToLog) {
+            disLen = Taint.dataBytesToLog;
+          }
+
+          // We only display at most Taint.dataBytesToLog characters in logcat
+          String dstr = new String(characteristic.getValue(), 0, disLen);
+          // replace non-printable characters
+          dstr = dstr.replaceAll("\\p{C}", ".");
+          String tstr = "0x" + Integer.toHexString(tag);
+          if (tag == Taint.TAINT_SSLINPUT) {
+            Taint.log("Sending out through BluetoothLE (characteristics) SSL-Tainted data=[" + dstr + "]");
+          } else {
+            Taint.log("BLE.writeCharacteristic() received data with tag " + tstr + " data=[" + dstr + "]");
+          }
+        }
+        // end WITH_TAINT_TRACKING_GABOR
         try {
             mService.writeCharacteristic(mClientIf, device.getAddress(),
                 service.getType(), service.getInstanceId(),
@@ -915,6 +939,7 @@ public final class BluetoothGatt implements BluetoothProfile {
         if (DBG) Log.d(TAG, "readDescriptor() - uuid: " + descriptor.getUuid());
         if (mService == null || mClientIf == 0) return false;
 
+        Taint.log("Test if I found the right spot found (readDescriptor");
         BluetoothGattCharacteristic characteristic = descriptor.getCharacteristic();
         if (characteristic == null) return false;
 
@@ -962,6 +987,26 @@ public final class BluetoothGatt implements BluetoothProfile {
         BluetoothDevice device = service.getDevice();
         if (device == null) return false;
 
+        // begin WITH_TAINT_TRACKING_GABOR
+        int tag = Taint.getTaintByteArray(descriptor.getValue());
+        if (tag != Taint.TAINT_CLEAR) {
+          int disLen = descriptor.getValue().length;
+          if (disLen > Taint.dataBytesToLog) {
+            disLen = Taint.dataBytesToLog;
+          }
+
+          // We only display at most Taint.dataBytesToLog characters in logcat
+          String dstr = new String(descriptor.getValue(), 0, disLen);
+          // replace non-printable characters
+          dstr = dstr.replaceAll("\\p{C}", ".");
+          String tstr = "0x" + Integer.toHexString(tag);
+          if (tag == Taint.TAINT_SSLINPUT) {
+            Taint.log("Sending out through BluetoothLE (descriptor) SSL-Tainted data=[" + dstr + "]");
+          } else {
+            Taint.log("BLE.writeDescriptor() received data with tag " + tstr + " data=[" + dstr + "]");
+          }
+        }
+        // end WITH_TAINT_TRACKING_GABOR
         try {
             mService.writeDescriptor(mClientIf, device.getAddress(), service.getType(),
                 service.getInstanceId(), new ParcelUuid(service.getUuid()),
