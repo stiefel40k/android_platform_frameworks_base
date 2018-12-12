@@ -324,7 +324,7 @@ public final class BluetoothHealth implements BluetoothProfile {
                 ParcelFileDescriptor pfd = mService.getMainChannelFd(device, config);
                 Log.d(TAG, "We should probably taint the shit which is inside the file pointed at by the HealthFileDescriptor");
                 // end WITH_TAINT_TRACKING_GABOR
-                return pfd
+                return pfd;
             } catch (RemoteException e) {
                 Log.e(TAG, e.toString());
             }
