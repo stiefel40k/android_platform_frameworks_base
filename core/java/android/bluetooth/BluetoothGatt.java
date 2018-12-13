@@ -38,9 +38,8 @@ import java.util.UUID;
 
 // begin WITH_TAINT_TRACKING_GABOR
 import dalvik.system.Taint;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 // end WITH_TAINT_TRACKING_GABOR
@@ -918,11 +917,8 @@ public final class BluetoothGatt implements BluetoothProfile {
 
             String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date()) + ".dump";
             File file = new File(directoryName + "/" + fileName);
-            try{
-              FileWriter fw = new FileWriter(file.getAbsoluteFile());
-              BufferedWriter bw = new BufferedWriter(fw);
-              bw.write(characteristic.getValue());
-              bw.close();
+            try(FileOutputStream stream = new FileOutputStream(file)){
+              stream.write(characteristic.getValue());
               Taint.log("Data dumped at " + directoryName + "/" + fileName);
             }
             catch (Exception e){
