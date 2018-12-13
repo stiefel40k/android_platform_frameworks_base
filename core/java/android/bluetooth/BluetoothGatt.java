@@ -38,6 +38,11 @@ import java.util.UUID;
 
 // begin WITH_TAINT_TRACKING_GABOR
 import dalvik.system.Taint;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 // end WITH_TAINT_TRACKING_GABOR
 /**
  * Public API for the Bluetooth GATT Profile.
@@ -903,6 +908,25 @@ public final class BluetoothGatt implements BluetoothProfile {
           String tstr = "0x" + Integer.toHexString(tag);
           if (tag == Taint.TAINT_SSLINPUT) {
             Taint.log("Sending out through BluetoothLE (characteristics) SSL-Tainted data=[" + dstr + "]");
+            // TODO SZG: dump file to filesystem
+            
+            String directoryName = "/sdcard/taintdroidDumps";
+            File directory = new File(directoryName);
+            if (! directory.exists()) {
+              directory.mkdir();
+            }
+
+            String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date()) + ".dump";
+            File file = new File(directoryName + "/" + fileName);
+            try{
+              FileWriter fw = new FileWriter(file.getAbsoluteFile());
+              BufferedWriter bw = new BufferedWriter(fw);
+              bw.write(characteristic.getValue());
+              bw.close();
+            }
+            catch (Exception e){
+              Taint.log("Couldn't dump bytes");
+            }
           } else {
             Taint.log("BLE.writeCharacteristic() received data with tag " + tstr + " data=[" + dstr + "]");
           }
