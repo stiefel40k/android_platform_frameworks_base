@@ -909,7 +909,7 @@ public final class BluetoothGatt implements BluetoothProfile {
             Taint.log("Sending out through BluetoothLE (characteristics) SSL-Tainted data=[" + dstr + "]");
             // TODO SZG: dump file to filesystem
             
-            String directoryName = "/sdcard/taintdroidDumps";
+            String directoryName = "/storage/emulated/legacy/taintdroidDumps";
             File directory = new File(directoryName);
             if (! directory.exists()) {
               directory.mkdir();
