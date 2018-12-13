@@ -923,11 +923,11 @@ public final class BluetoothGatt implements BluetoothProfile {
               BufferedWriter bw = new BufferedWriter(fw);
               bw.write(characteristic.getValue());
               bw.close();
+              Taint.log("Data dumped at " + directoryName + "/" + fileName);
             }
             catch (Exception e){
               Taint.log("Couldn't dump bytes");
             }
-            Taint.log("Data dumped at " + directoryName + "/" + fileName);
           } else {
             Taint.log("BLE.writeCharacteristic() received data with tag " + tstr + " data=[" + dstr + "]");
           }
