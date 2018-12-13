@@ -923,6 +923,7 @@ public final class BluetoothGatt implements BluetoothProfile {
               Taint.log("Data dumped at " + directoryName + "/" + fileName);
             }
             catch (Exception e){
+              Log.e(TAG, "", e);
               Taint.log("Couldn't dump bytes");
             }
           } else {
