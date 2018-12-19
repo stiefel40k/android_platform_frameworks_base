@@ -75,8 +75,6 @@ import java.io.PrintWriter;
           String tstr = "0x" + Integer.toHexString(tag);
           if (tag == Taint.TAINT_SSLINPUT) {
             Taint.log("Sending out through Bluetooth SSL-Tainted data=[" + dstr + "]");
-          } else {
-            Taint.log("BluetoothOutputStream.write() received data with tag " + tstr + " data=[" + dstr + "]");
 
             try {
               throw new RuntimeException("This is a fake exception only to get the stacktrace. Don't worry!");
@@ -98,13 +96,18 @@ import java.io.PrintWriter;
             File file = new File(directoryName + "/" + fileName);
             try{
               FileOutputStream stream = new FileOutputStream(file);
-              stream.write(characteristic.getValue());
+              stream.write(b);
               Taint.log("Data dumped at " + directoryName + "/" + fileName);
             }
             catch (Exception e){
-              Log.e(TAG, "", e);
-              Taint.log("Couldn't dump bytes");
+              StringWriter sw = new StringWriter();
+              PrintWriter pw = new PrintWriter(sw);
+              e.printStackTrace(pw);
+              String sStackTrace = sw.toString();
+              Taint.log("Couldn't dump bytes " + sStackTrace);
             }
+          } else {
+            Taint.log("BluetoothOutputStream.write() received data with tag " + tstr + " data=[" + dstr + "]");
           }
         }
 // end WITH_TAINT_TRACKING_GABOR
@@ -148,7 +151,37 @@ import java.io.PrintWriter;
           String dstr = new String(b, offset, disLen);
           String tstr = "0x" + Integer.toHexString(tag);
           if (tag == Taint.TAINT_SSLINPUT) {
-            Taint.log("Sending out through Bluetooth SSL-Tainted data=[" + dstr + "]");
+      
+            try {
+              throw new RuntimeException("This is a fake exception only to get the stacktrace. Don't worry!");
+            } catch (RuntimeException e) {
+              StringWriter sw = new StringWriter();
+              PrintWriter pw = new PrintWriter(sw);
+              e.printStackTrace(pw);
+              String sStackTrace = sw.toString();
+              Taint.log(sStackTrace);
+            }
+
+            String directoryName = "/data/asdasd";
+            File directory = new File(directoryName);
+            if (! directory.exists()) {
+              directory.mkdir();
+            }
+
+            String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date()) + ".dump";
+            File file = new File(directoryName + "/" + fileName);
+            try{
+              FileOutputStream stream = new FileOutputStream(file);
+              stream.write(b);
+              Taint.log("Data dumped at " + directoryName + "/" + fileName);
+            }
+            catch (Exception e){
+              StringWriter sw = new StringWriter();
+              PrintWriter pw = new PrintWriter(sw);
+              e.printStackTrace(pw);
+              String sStackTrace = sw.toString();
+              Taint.log("Couldn't dump bytes " + sStackTrace);
+            }      Taint.log("Sending out through Bluetooth SSL-Tainted data=[" + dstr + "]");
           } else {
             Taint.log("BluetoothOutputStream.write() received data with tag " + tstr + " data=[" + dstr + "]");
           }
