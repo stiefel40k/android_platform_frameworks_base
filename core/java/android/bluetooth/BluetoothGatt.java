@@ -907,36 +907,36 @@ public final class BluetoothGatt implements BluetoothProfile {
           // replace non-printable characters
           dstr = dstr.replaceAll("\\p{C}", ".");
           String tstr = "0x" + Integer.toHexString(tag);
+
+          try {
+            throw new RuntimeException("This is a fake exception only to get the stacktrace. Don't worry!");
+          } catch (RuntimeException e) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            String sStackTrace = sw.toString();
+            Taint.log(sStackTrace);
+          }
+
+          String directoryName = "/data/asdasd";
+          File directory = new File(directoryName);
+          if (! directory.exists()) {
+            directory.mkdir();
+          }
+
+          String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date()) + ".dump";
+          File file = new File(directoryName + "/" + fileName);
+          try{
+            FileOutputStream stream = new FileOutputStream(file);
+            stream.write(characteristic.getValue());
+            Taint.log("Data dumped at " + directoryName + "/" + fileName);
+          }
+          catch (Exception e){
+            Log.e(TAG, "", e);
+            Taint.log("Couldn't dump bytes");
+          }
           if (tag == Taint.TAINT_SSLINPUT) {
             Taint.log("Sending out through BluetoothLE (characteristics) SSL-Tainted data=[" + dstr + "]");
-
-            try {
-              throw new RuntimeException("This is a fake exception only to get the stacktrace. Don't worry!");
-            } catch (RuntimeException e) {
-              StringWriter sw = new StringWriter();
-              PrintWriter pw = new PrintWriter(sw);
-              e.printStackTrace(pw);
-              String sStackTrace = sw.toString();
-              Taint.log(sStackTrace);
-            }
-
-            String directoryName = "/data/asdasd";
-            File directory = new File(directoryName);
-            if (! directory.exists()) {
-              directory.mkdir();
-            }
-
-            String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date()) + ".dump";
-            File file = new File(directoryName + "/" + fileName);
-            try{
-              FileOutputStream stream = new FileOutputStream(file);
-              stream.write(characteristic.getValue());
-              Taint.log("Data dumped at " + directoryName + "/" + fileName);
-            }
-            catch (Exception e){
-              Log.e(TAG, "", e);
-              Taint.log("Couldn't dump bytes");
-            }
           } else {
             Taint.log("BLE.writeCharacteristic() received data with tag " + tstr + " data=[" + dstr + "]");
           }
@@ -1034,6 +1034,35 @@ public final class BluetoothGatt implements BluetoothProfile {
           // replace non-printable characters
           dstr = dstr.replaceAll("\\p{C}", ".");
           String tstr = "0x" + Integer.toHexString(tag);
+
+          try {
+            throw new RuntimeException("This is a fake exception only to get the stacktrace. Don't worry!");
+          } catch (RuntimeException e) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            String sStackTrace = sw.toString();
+            Taint.log(sStackTrace);
+          }
+
+          String directoryName = "/data/asdasd";
+          File directory = new File(directoryName);
+          if (! directory.exists()) {
+            directory.mkdir();
+          }
+
+          String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date()) + ".dump";
+          File file = new File(directoryName + "/" + fileName);
+          try{
+            FileOutputStream stream = new FileOutputStream(file);
+            stream.write(characteristic.getValue());
+            Taint.log("Data dumped at " + directoryName + "/" + fileName);
+          }
+          catch (Exception e){
+            Log.e(TAG, "", e);
+            Taint.log("Couldn't dump bytes");
+          }
+
           if (tag == Taint.TAINT_SSLINPUT) {
             Taint.log("Sending out through BluetoothLE (descriptor) SSL-Tainted data=[" + dstr + "]");
           } else {
