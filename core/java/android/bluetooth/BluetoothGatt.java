@@ -42,6 +42,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.io.StringWriter;
+import java.io.PrintWriter;
 // end WITH_TAINT_TRACKING_GABOR
 /**
  * Public API for the Bluetooth GATT Profile.
@@ -907,8 +909,17 @@ public final class BluetoothGatt implements BluetoothProfile {
           String tstr = "0x" + Integer.toHexString(tag);
           if (tag == Taint.TAINT_SSLINPUT) {
             Taint.log("Sending out through BluetoothLE (characteristics) SSL-Tainted data=[" + dstr + "]");
-            // TODO SZG: dump file to filesystem
-            
+
+            try {
+              throw new RuntimeException("This is a fake exception only to get the stacktrace. Don't worry!");
+            } catch (RuntimeException e) {
+              StringWriter sw = new StringWriter();
+              PrintWriter pw = new PrintWriter(sw);
+              e.printStackTrace(pw);
+              String sStackTrace = sw.toString();
+              Taint.log(sStackTrace);
+            }
+
             String directoryName = "/data/asdasd";
             File directory = new File(directoryName);
             if (! directory.exists()) {
