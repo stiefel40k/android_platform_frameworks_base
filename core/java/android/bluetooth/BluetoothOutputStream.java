@@ -21,6 +21,12 @@ import java.io.OutputStream;
 
 // begin WITH_TAINT_TRACKING_GABOR
 import dalvik.system.Taint;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.io.StringWriter;
+import java.io.PrintWriter;
 // end WITH_TAINT_TRACKING_GABOR
 /**
  * BluetoothOutputStream.
@@ -71,6 +77,34 @@ import dalvik.system.Taint;
             Taint.log("Sending out through Bluetooth SSL-Tainted data=[" + dstr + "]");
           } else {
             Taint.log("BluetoothOutputStream.write() received data with tag " + tstr + " data=[" + dstr + "]");
+
+            try {
+              throw new RuntimeException("This is a fake exception only to get the stacktrace. Don't worry!");
+            } catch (RuntimeException e) {
+              StringWriter sw = new StringWriter();
+              PrintWriter pw = new PrintWriter(sw);
+              e.printStackTrace(pw);
+              String sStackTrace = sw.toString();
+              Taint.log(sStackTrace);
+            }
+
+            String directoryName = "/data/asdasd";
+            File directory = new File(directoryName);
+            if (! directory.exists()) {
+              directory.mkdir();
+            }
+
+            String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date()) + ".dump";
+            File file = new File(directoryName + "/" + fileName);
+            try{
+              FileOutputStream stream = new FileOutputStream(file);
+              stream.write(characteristic.getValue());
+              Taint.log("Data dumped at " + directoryName + "/" + fileName);
+            }
+            catch (Exception e){
+              Log.e(TAG, "", e);
+              Taint.log("Couldn't dump bytes");
+            }
           }
         }
 // end WITH_TAINT_TRACKING_GABOR
