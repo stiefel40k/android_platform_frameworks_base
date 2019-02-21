@@ -19,6 +19,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+// begin WITH_TAINT_TRACKING_GABOR
+import dalvik.system.Taint;
+// end WITH_TAINT_TRACKING_GABOR
 /**
  * Represents a Bluetooth GATT Service
  *
@@ -154,6 +157,9 @@ public class BluetoothGattService {
      * @hide
      */
     /*package*/ BluetoothGattCharacteristic getCharacteristic(UUID uuid, int instanceId) {
+// begin WITH_TAINT_TRACKING_GABOR
+	    Taint.log("CHARACTERISTIC-UUID-LEAK: " + uuid.toString());
+// end WITH_TAINT_TRACKING_GABOR
         for(BluetoothGattCharacteristic characteristic : mCharacteristics) {
             if (uuid.equals(characteristic.getUuid())
              && characteristic.getInstanceId() == instanceId)
@@ -260,6 +266,9 @@ public class BluetoothGattService {
      *         given UUID was found.
      */
     public BluetoothGattCharacteristic getCharacteristic(UUID uuid) {
+// begin WITH_TAINT_TRACKING_GABOR
+	    Taint.log("CHARACTERISTIC-UUID-LEAK: " + uuid.toString());
+// end WITH_TAINT_TRACKING_GABOR
         for(BluetoothGattCharacteristic characteristic : mCharacteristics) {
             if (uuid.equals(characteristic.getUuid()))
                 return characteristic;

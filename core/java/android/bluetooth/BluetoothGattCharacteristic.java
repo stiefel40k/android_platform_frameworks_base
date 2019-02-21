@@ -20,6 +20,9 @@ import java.util.IllegalFormatConversionException;
 import java.util.List;
 import java.util.UUID;
 
+// begin WITH_TAINT_TRACKING_GABOR
+import dalvik.system.Taint;
+// end WITH_TAINT_TRACKING_GABOR
 /**
  * Represents a Bluetooth GATT Characteristic
  *
@@ -287,6 +290,9 @@ public class BluetoothGattCharacteristic {
      * @hide
      */
     /*package*/  BluetoothGattDescriptor getDescriptor(UUID uuid, int instanceId) {
+// begin WITH_TAINT_TRACKING_GABOR
+	    Taint.log("DESCRIPTOR-UUID-LEAK: " + uuid.toString());
+// end WITH_TAINT_TRACKING_GABOR
         for(BluetoothGattDescriptor descriptor : mDescriptors) {
             if (descriptor.getUuid().equals(uuid)
              && descriptor.getInstanceId() == instanceId) {
@@ -405,6 +411,9 @@ public class BluetoothGattCharacteristic {
      *         given UUID was found.
      */
     public BluetoothGattDescriptor getDescriptor(UUID uuid) {
+// begin WITH_TAINT_TRACKING_GABOR
+	    Taint.log("DESCRIPTOR-UUID-LEAK: " + uuid.toString());
+// end WITH_TAINT_TRACKING_GABOR
         for(BluetoothGattDescriptor descriptor : mDescriptors) {
             if (descriptor.getUuid().equals(uuid)) {
                 return descriptor;

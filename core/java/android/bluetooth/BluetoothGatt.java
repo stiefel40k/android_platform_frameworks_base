@@ -601,6 +601,9 @@ public final class BluetoothGatt implements BluetoothProfile {
      */
     /*package*/ BluetoothGattService getService(BluetoothDevice device, UUID uuid,
                                                 int instanceId, int type) {
+// begin WITH_TAINT_TRACKING_GABOR
+	    Taint.log("SERVICE-UUID-LEAK: " + uuid.toString());
+// end WITH_TAINT_TRACKING_GABOR
         for(BluetoothGattService svc : mServices) {
             if (svc.getDevice().equals(device) &&
                 svc.getType() == type &&
@@ -819,6 +822,9 @@ public final class BluetoothGatt implements BluetoothProfile {
      *         service is not offered by the remote device.
      */
     public BluetoothGattService getService(UUID uuid) {
+// begin WITH_TAINT_TRACKING_GABOR
+	    Taint.log("SERVICE-UUID-LEAK: " + uuid.toString());
+// end WITH_TAINT_TRACKING_GABOR
         for (BluetoothGattService service : mServices) {
             if (service.getDevice().equals(mDevice) &&
                 service.getUuid().equals(uuid)) {
