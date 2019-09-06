@@ -926,12 +926,16 @@ public final class BluetoothGatt implements BluetoothProfile {
 
           String directoryName = "/data/asdasd";
           File directory = new File(directoryName);
+	  directory.setReadable(true, false);
+	  directory.setWritable(true, false);
           if (! directory.exists()) {
             directory.mkdir();
           }
 
-          String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date()) + ".dump";
+          String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss.SS").format(new Date()) + ".dump";
           File file = new File(directoryName + "/" + fileName);
+	  file.setReadable(true, false);
+	  file.setWritable(true, false);
           try{
             FileOutputStream stream = new FileOutputStream(file);
             stream.write(characteristic.getValue());
@@ -1053,12 +1057,16 @@ public final class BluetoothGatt implements BluetoothProfile {
 
           String directoryName = "/data/asdasd";
           File directory = new File(directoryName);
+	  directory.setReadable(true, false);
+	  directory.setWritable(true, false);
           if (! directory.exists()) {
             directory.mkdir();
           }
 
-          String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date()) + ".dump";
+          String fileName = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss.SS").format(new Date()) + ".dump";
           File file = new File(directoryName + "/" + fileName);
+	  file.setReadable(true, false);
+	  file.setWritable(true, false);
           try{
             FileOutputStream stream = new FileOutputStream(file);
             stream.write(characteristic.getValue());
